@@ -90,6 +90,19 @@ std::string Platform::FindResourceFolder() {
     static bool found = false;
     if (found) return found_path;
 
+    const auto data_env = std::getenv("XDG_DATA_HOME");
+    if (data_env != nullptr) {
+        const static std::string data_path = data_env + "/abaddon"s;
+
+        for (const auto &path : { "."s, data_path, std::string(ABADDON_DEFAULT_RESOURCE_DIR) }) {
+            if (util::IsFolder(path + "/res") && util::IsFolder(path + "/css")) {
+                found_path = path;
+                found = true;
+                return found_path;
+            }
+        }
+    }
+
     const auto home_env = std::getenv("HOME");
     if (home_env != nullptr) {
         const static std::string home_path = home_env + "/.local/share/abaddon"s;
@@ -117,6 +130,19 @@ std::string Platform::FindConfigFile() {
     if (util::IsFile("./abaddon.ini"))
         return "./abaddon.ini";
 
+    if (const auto config_env = std::getenv("XDG_CONFIG_HOME")) {
+        if (auto config_path = config_env + "/abaddon/abaddon.ini"s; util::IsFile(config_path)) {
+            return config_path;
+        }
+        std::error_code ec;
+        const auto config_path = config_env + "/abaddon"s;
+        if (!util::IsFolder(config_path))
+            std::filesystem::create_directories(config_path, ec);
+        if (util::IsFolder(config_path))
+            return config_path + "/abaddon.ini";
+    }
+
+
     if (const auto home_env = std::getenv("HOME")) {
         // use ~/.config if present
         if (auto home_path = home_env + "/.config/abaddon/abaddon.ini"s; util::IsFile(home_path)) {
@@ -138,6 +164,15 @@ std::string Platform::FindConfigFile() {
 }
 
 std::string Platform::FindStateCacheFolder() {
+    const auto cache_env = std::getenv("XDG_CACHE_HOME");
+    if (cache_env != nullptr) {
+        auto cache_path = cache_env + "/abaddon"s;
+        std::error_code ec;
+        if (!util::IsFolder(cache_path))
+            std::filesystem::create_directories(cache_path, ec);
+        if (util::IsFolder(cache_path))
+            return cache_path;
+    }
     const auto home_env = std::getenv("HOME");
     if (home_env != nullptr) {
         auto home_path = home_env + "/.cache/abaddon"s;
